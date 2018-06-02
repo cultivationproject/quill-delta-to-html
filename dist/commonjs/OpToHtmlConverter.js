@@ -6,6 +6,7 @@ require("./extensions/String");
 require("./extensions/Object");
 require("./extensions/Array");
 var OpAttributeSanitizer_1 = require("./OpAttributeSanitizer");
+var linkifyStr = require('linkifyjs/string');
 var OpToHtmlConverter = (function () {
     function OpToHtmlConverter(op, options) {
         this.op = op;
@@ -56,7 +57,8 @@ var OpToHtmlConverter = (function () {
             return this.op.insert.value;
         }
         var content = this.op.isFormula() || this.op.isText() ? this.op.insert.value : '';
-        return this.options.encodeHtml && funcs_html_1.encodeHtml(content) || content;
+        content = linkifyStr(content);
+        return content;
     };
     OpToHtmlConverter.prototype.getCssClasses = function () {
         var attrs = this.op.attributes;

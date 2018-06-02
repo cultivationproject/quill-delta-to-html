@@ -6,6 +6,7 @@ import './extensions/Object';
 import { IMention } from "./mentions/MentionSanitizer";
 import './extensions/Array';
 import { OpAttributeSanitizer, IOpAttributes } from "./OpAttributeSanitizer";
+var linkifyStr = require('linkifyjs/string');
 
 
 interface IOpToHtmlConverterOptions {
@@ -90,8 +91,9 @@ class OpToHtmlConverter {
       }
 
       var content = this.op.isFormula() || this.op.isText() ? this.op.insert.value : '';
+      content = linkifyStr(content);
 
-      return this.options.encodeHtml && encodeHtml(content) || content;
+      return content;
    }
 
    getCssClasses(): string[] {
