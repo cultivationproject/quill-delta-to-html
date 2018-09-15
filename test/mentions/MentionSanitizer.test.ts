@@ -2,7 +2,6 @@ import 'mocha';
 import * as assert from 'assert';
 
 import {MentionSanitizer} from "./../../src/mentions/MentionSanitizer";
-import { IMention } from '../../src/mentions/MentionSanitizer';
 
 describe('MentionSanitizer', function () {
 
@@ -18,7 +17,7 @@ describe('MentionSanitizer', function () {
                   slug: 'my-name'
                 }
             );
-            console.log(sanitized);
+            //console.log(sanitized);
             assert.deepEqual(sanitized, {
                'class': 'A-cls-9',
                id: 'An-id_9:.',

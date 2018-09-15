@@ -7,6 +7,9 @@ Converts [Quill's](https://quilljs.com) [Delta](https://quilljs.com/docs/delta/)
 
 You can try a live demo of the conversion by opening the `demo-browser.html` file after cloning the repo.
 
+## Breaking change: `import/require` has changed as of `v0.10.0`. See Usage below ##
+
+
 
 ## Quickstart ## 
 
@@ -16,8 +19,11 @@ npm install quill-delta-to-html
 ```
 
 Usage
-```javascript
-var QuillDeltaToHtmlConverter = require('quill-delta-to-html');
+```javascript(commonJS)
+var QuillDeltaToHtmlConverter = require('quill-delta-to-html').QuillDeltaToHtmlConverter;
+
+// TypeScript / ES6:
+// import { QuillDeltaToHtmlConverter } from 'quill-delta-to-html'; 
 
 var deltaOps =  [
     {insert: "Hello\n"},
@@ -43,8 +49,9 @@ var html = converter.convert();
 |multiLineBlockquote| true | Instead of rendering multiple `blockquote` elements for quotes that are consecutive and have same styles(`align`, `indent`, and `direction`), it renders them into only one|
 |multiLineHeader| true | Same deal as `multiLineBlockquote` for headers|
 |multiLineCodeblock| true | Same deal as `multiLineBlockquote` for code-blocks|
+|multiLineParagraph| true | Set to false to generate a new paragraph tag after each enter press (new line)|
 |linkRel| '' | Specifies a value to put on the `rel` attr on links|
-|linkTarget| '_blank' | Specifies target for all links; use `''` (empty string) to not generate `target` attribute. This can be overridden by an individual link op by specifiying the `target` with a value in the respective op's attributes|
+|linkTarget| '_blank' | Specifies target for all links; use `''` (empty string) to not generate `target` attribute. This can be overridden by an individual link op by specifiying the `target` with a value in the respective op's attributes.|
 |allowBackgroundClasses| false | If true, css classes will be added for background attr|
 
 ## Rendering Quill Formats ##
@@ -56,7 +63,7 @@ There are `beforeRender` and `afterRender` events and they are called multiple t
 - continuous sets of inline elements
 - a video element
 - list elements
-- block elements (header, code-block, blockquote, align, indent, and direction) 
+- block elements (header, code-block, blockquote, align, indent, and direction)
 
 `beforeRender` event is called with raw operation objects for you to generate and return your own html. If you return a `falsy` value, system will return its own generated html. 
 
@@ -106,10 +113,12 @@ Following shows the parameter formats for `beforeRender` event:
 
 You need to tell system how to render your custom blot by registering a renderer callback function to `renderCustomWith` method before calling the `convert()` method. 
 
+If you would like your custom blot to be rendered as a block (not inside another block or grouped as part of inlines), then add `renderAsBlock: true` to its attributes. 
+
 Example:
 ```javascript 
 let ops = [
-    {insert: {'my-blot': {id: 2, text: 'xyz'}}}
+    {insert: {'my-blot': {id: 2, text: 'xyz'}}, attributes: {renderAsBlock: true|false}}
 ];
 
 let converter = new QuillDeltaToHtmlConverter(ops);
@@ -161,5 +170,8 @@ following types:
 |`BlockGroup`|op: `op object`, ops: Array<`op object`>|
 |`ListGroup`|items: Array<`ListItem`>|
 ||ListItem: {item:`BlockGroup`, innerList:`ListGroup`}|
+|`BlotBlock`|op: `op object`|
+
+`BlotBlock` represents custom blots with `renderAsBlock:true` property pair in its attributes
 
 See above for `op object` format. 

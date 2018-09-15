@@ -1,36 +1,39 @@
 
 import { ListType, AlignType, DirectionType, ScriptType } from './value-types';
 import { MentionSanitizer } from "./mentions/MentionSanitizer";
-import './extensions/String';
+import * as url from './helpers/url';
 import { IMention } from "./mentions/MentionSanitizer";
 
 interface IOpAttributes {
-   background?: string,
-   color?: string,
-   font?: string,
-   size?: string,
-   width?: string,
+   background?: string | undefined,
+   color?: string | undefined,
+   font?: string | undefined,
+   size?: string | undefined,
+   width?: string | undefined,
 
-   link?: string,
-   bold?: boolean,
-   italic?: boolean,
-   underline?: boolean,
-   strike?: boolean,
+   link?: string | undefined,
+   bold?: boolean | undefined,
+   italic?: boolean | undefined,
+   underline?: boolean | undefined,
+   strike?: boolean | undefined,
    script?: ScriptType,
 
-   code?: boolean,
+   code?: boolean | undefined,
 
    list?: ListType,
-   blockquote?: boolean,
-   'code-block'?: boolean,
-   header?: number,
+   blockquote?: boolean | undefined,
+   'code-block'?: boolean | undefined,
+   header?: number | undefined,
    align?: AlignType,
    direction?: DirectionType,
-   indent?: number,
+   indent?: number | undefined,
 
-   mentions?: boolean,
-   mention?: IMention,
-   target?: string
+   mentions?: boolean | undefined,
+   mention?: IMention | undefined,
+   target?: string | undefined,
+
+   // should this custom blot be rendered as block?
+   renderAsBlock?: boolean | undefined
 }
 
 class OpAttributeSanitizer {
@@ -44,12 +47,12 @@ class OpAttributeSanitizer {
       }
       let booleanAttrs = [
          'bold', 'italic', 'underline', 'strike', 'code',
-         'blockquote', 'code-block'
+         'blockquote', 'code-block','renderAsBlock'
       ];
 
       let colorAttrs = ['background', 'color'];
 
-      let { font, size, link, script, list, header, align, 
+      let { font, size, link, script, list, header, align,
          direction, indent, mentions, mention, width, target
       } = dirtyAttrs;
 
@@ -85,7 +88,7 @@ class OpAttributeSanitizer {
       }
 
       if (link) {
-         cleanAttrs.link = (link + '')._scrubUrl();
+         cleanAttrs.link = url.sanitize(link + '');
       }
       if (target && OpAttributeSanitizer.isValidTarget(target)) {
          cleanAttrs.target = target;
@@ -95,7 +98,7 @@ class OpAttributeSanitizer {
          cleanAttrs.script = script;
       }
 
-      if (list === ListType.Bullet || list === ListType.Ordered) {
+      if (list === ListType.Bullet || list === ListType.Ordered || list === ListType.Checked || list === ListType.Unchecked) {
          cleanAttrs.list = list;
       }
 
@@ -103,7 +106,7 @@ class OpAttributeSanitizer {
          cleanAttrs.header = Math.min(Number(header), 6);
       }
 
-      if (align === AlignType.Center || align === AlignType.Right) {
+      if (align === AlignType.Center || align === AlignType.Right || align === AlignType.Justify) {
          cleanAttrs.align = align;
       }
 
@@ -114,7 +117,7 @@ class OpAttributeSanitizer {
       if (indent && Number(indent)) {
          cleanAttrs.indent = Math.min(Number(indent), 30);
       }
-      
+
       if (mentions && mention) {
          let sanitizedMention = MentionSanitizer.sanitize(mention);
          if (Object.keys(sanitizedMention).length > 0) {

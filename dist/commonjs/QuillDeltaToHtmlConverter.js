@@ -6,20 +6,21 @@ var Grouper_1 = require("./grouper/Grouper");
 var group_types_1 = require("./grouper/group-types");
 var ListNester_1 = require("./grouper/ListNester");
 var funcs_html_1 = require("./funcs-html");
-require("./extensions/Object");
+var obj = require("./helpers/object");
 var value_types_1 = require("./value-types");
 var BrTag = '<br/>';
 var QuillDeltaToHtmlConverter = (function () {
     function QuillDeltaToHtmlConverter(deltaOps, options) {
         this.rawDeltaOps = [];
         this.callbacks = {};
-        this.options = Object._assign({
+        this.options = obj.assign({
             paragraphTag: 'p',
             encodeHtml: true,
             classPrefix: 'ql',
             multiLineBlockquote: true,
             multiLineHeader: true,
             multiLineCodeblock: true,
+            multiLineParagraph: true,
             allowBackgroundClasses: false,
             linkTarget: '_blank'
         }, options, {
@@ -38,10 +39,12 @@ var QuillDeltaToHtmlConverter = (function () {
         };
         this.rawDeltaOps = deltaOps;
     }
-    QuillDeltaToHtmlConverter.prototype.getListTag = function (op) {
+    QuillDeltaToHtmlConverter.prototype._getListTag = function (op) {
         return op.isOrderedList() ? this.options.orderedListTag + ''
             : op.isBulletList() ? this.options.bulletListTag + ''
-                : '';
+                : op.isCheckedList() ? this.options.bulletListTag + ''
+                    : op.isUncheckedList() ? this.options.bulletListTag + ''
+                        : '';
     };
     QuillDeltaToHtmlConverter.prototype.getGroupedOps = function () {
         var deltaOps = InsertOpsConverter_1.InsertOpsConverter.convert(this.rawDeltaOps);
@@ -57,31 +60,34 @@ var QuillDeltaToHtmlConverter = (function () {
     };
     QuillDeltaToHtmlConverter.prototype.convert = function () {
         var _this = this;
-        return this.getGroupedOps()
-            .map(function (group) {
+        var groups = this.getGroupedOps();
+        return groups.map(function (group) {
             if (group instanceof group_types_1.ListGroup) {
-                return _this.renderWithCallbacks(value_types_1.GroupType.List, group, function () { return _this.renderList(group); });
+                return _this._renderWithCallbacks(value_types_1.GroupType.List, group, function () { return _this._renderList(group); });
             }
             else if (group instanceof group_types_1.BlockGroup) {
                 var g = group;
-                return _this.renderWithCallbacks(value_types_1.GroupType.Block, group, function () { return _this.renderBlock(g.op, g.ops); });
+                return _this._renderWithCallbacks(value_types_1.GroupType.Block, group, function () { return _this._renderBlock(g.op, g.ops); });
+            }
+            else if (group instanceof group_types_1.BlotBlock) {
+                return _this._renderCustom(group.op, null);
             }
             else if (group instanceof group_types_1.VideoItem) {
-                return _this.renderWithCallbacks(value_types_1.GroupType.Video, group, function () {
+                return _this._renderWithCallbacks(value_types_1.GroupType.Video, group, function () {
                     var g = group;
                     var converter = new OpToHtmlConverter_1.OpToHtmlConverter(g.op, _this.converterOptions);
                     return converter.getHtml();
                 });
             }
             else {
-                return _this.renderWithCallbacks(value_types_1.GroupType.InlineGroup, group, function () {
-                    return _this.renderInlines(group.ops);
+                return _this._renderWithCallbacks(value_types_1.GroupType.InlineGroup, group, function () {
+                    return _this._renderInlines(group.ops, true);
                 });
             }
         })
             .join("");
     };
-    QuillDeltaToHtmlConverter.prototype.renderWithCallbacks = function (groupType, group, myRenderFn) {
+    QuillDeltaToHtmlConverter.prototype._renderWithCallbacks = function (groupType, group, myRenderFn) {
         var html = '';
         var beforeCb = this.callbacks['beforeRender_cb'];
         html = typeof beforeCb === 'function' ? beforeCb.apply(null, [groupType, group]) : '';
@@ -92,41 +98,39 @@ var QuillDeltaToHtmlConverter = (function () {
         html = typeof afterCb === 'function' ? afterCb.apply(null, [groupType, html]) : html;
         return html;
     };
-    QuillDeltaToHtmlConverter.prototype.renderList = function (list, isOuterMost) {
+    QuillDeltaToHtmlConverter.prototype._renderList = function (list) {
         var _this = this;
-        if (isOuterMost === void 0) { isOuterMost = true; }
         var firstItem = list.items[0];
-        return funcs_html_1.makeStartTag(this.getListTag(firstItem.item.op))
-            + list.items.map(function (li) { return _this.renderListItem(li, isOuterMost); }).join('')
-            + funcs_html_1.makeEndTag(this.getListTag(firstItem.item.op));
+        return funcs_html_1.makeStartTag(this._getListTag(firstItem.item.op))
+            + list.items.map(function (li) { return _this._renderListItem(li); }).join('')
+            + funcs_html_1.makeEndTag(this._getListTag(firstItem.item.op));
     };
-    QuillDeltaToHtmlConverter.prototype.renderListItem = function (li, isOuterMost) {
-        var converterOptions = Object._assign({}, this.converterOptions);
+    QuillDeltaToHtmlConverter.prototype._renderListItem = function (li) {
         li.item.op.attributes.indent = 0;
         var converter = new OpToHtmlConverter_1.OpToHtmlConverter(li.item.op, this.converterOptions);
         var parts = converter.getHtmlParts();
-        var liElementsHtml = this.renderInlines(li.item.ops, false);
+        var liElementsHtml = this._renderInlines(li.item.ops, false);
         return parts.openingTag + (liElementsHtml) +
-            (li.innerList ? this.renderList(li.innerList, false) : '')
+            (li.innerList ? this._renderList(li.innerList) : '')
             + parts.closingTag;
     };
-    QuillDeltaToHtmlConverter.prototype.renderBlock = function (bop, ops) {
+    QuillDeltaToHtmlConverter.prototype._renderBlock = function (bop, ops) {
         var _this = this;
         var converter = new OpToHtmlConverter_1.OpToHtmlConverter(bop, this.converterOptions);
         var htmlParts = converter.getHtmlParts();
         if (bop.isCodeBlock()) {
             return htmlParts.openingTag +
                 funcs_html_1.encodeHtml(ops.map(function (iop) {
-                    return iop.isCustom() ? _this.renderCustom(iop, bop) : iop.insert.value;
+                    return iop.isCustom() ? _this._renderCustom(iop, bop) : iop.insert.value;
                 }).join(""))
                 + htmlParts.closingTag;
         }
         var inlines = ops.map(function (op) { return _this._renderInline(op, bop); }).join('');
         return htmlParts.openingTag + (inlines || BrTag) + htmlParts.closingTag;
     };
-    QuillDeltaToHtmlConverter.prototype.renderInlines = function (ops, wrapInParagraphTag) {
+    QuillDeltaToHtmlConverter.prototype._renderInlines = function (ops, isInlineGroup) {
         var _this = this;
-        if (wrapInParagraphTag === void 0) { wrapInParagraphTag = true; }
+        if (isInlineGroup === void 0) { isInlineGroup = true; }
         var opsLen = ops.length - 1;
         var html = ops.map(function (op, i) {
             if (i > 0 && i === opsLen && op.isJustNewline()) {
@@ -134,20 +138,26 @@ var QuillDeltaToHtmlConverter = (function () {
             }
             return _this._renderInline(op, null);
         }).join('');
-        if (!wrapInParagraphTag) {
+        if (!isInlineGroup) {
             return html;
         }
-        return funcs_html_1.makeStartTag(this.options.paragraphTag) +
-            html + funcs_html_1.makeEndTag(this.options.paragraphTag);
+        var startParaTag = funcs_html_1.makeStartTag(this.options.paragraphTag);
+        var endParaTag = funcs_html_1.makeEndTag(this.options.paragraphTag);
+        if (html === BrTag || this.options.multiLineParagraph) {
+            return startParaTag + html + endParaTag;
+        }
+        return startParaTag + html.split(BrTag).map(function (v) {
+            return v === '' ? BrTag : v;
+        }).join(endParaTag + startParaTag) + endParaTag;
     };
     QuillDeltaToHtmlConverter.prototype._renderInline = function (op, contextOp) {
         if (op.isCustom()) {
-            return this.renderCustom(op, contextOp);
+            return this._renderCustom(op, contextOp);
         }
         var converter = new OpToHtmlConverter_1.OpToHtmlConverter(op, this.converterOptions);
         return converter.getHtml().replace(/\n/g, BrTag);
     };
-    QuillDeltaToHtmlConverter.prototype.renderCustom = function (op, contextOp) {
+    QuillDeltaToHtmlConverter.prototype._renderCustom = function (op, contextOp) {
         var renderCb = this.callbacks['renderCustomOp_cb'];
         if (typeof renderCb === 'function') {
             return renderCb.apply(null, [op, contextOp]);

@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-require("./../extensions/String");
+var url = require("./../helpers/url");
 var MentionSanitizer = (function () {
     function MentionSanitizer() {
     }
@@ -15,17 +15,17 @@ var MentionSanitizer = (function () {
         if (dirtyObj.id && MentionSanitizer.IsValidId(dirtyObj.id)) {
             cleanObj.id = dirtyObj.id;
         }
-        if (MentionSanitizer.IsValidTarget(dirtyObj.target)) {
+        if (MentionSanitizer.IsValidTarget(dirtyObj.target + '')) {
             cleanObj.target = dirtyObj.target;
         }
         if (dirtyObj.avatar) {
-            cleanObj.avatar = (dirtyObj.avatar + '')._scrubUrl();
+            cleanObj.avatar = url.sanitize(dirtyObj.avatar + '');
         }
         if (dirtyObj['end-point']) {
-            cleanObj['end-point'] = (dirtyObj['end-point'] + '')._scrubUrl();
+            cleanObj['end-point'] = url.sanitize(dirtyObj['end-point'] + '');
         }
         if (dirtyObj.slug) {
-            cleanObj.slug = (dirtyObj.slug + '')._scrubUrl();
+            cleanObj.slug = (dirtyObj.slug + '');
         }
         return cleanObj;
     };
